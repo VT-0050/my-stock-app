@@ -4,8 +4,8 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # 網頁標題
-st.set_page_config(page_title="我的簡易看盤工具", layout="wide")
-st.title("📈 簡易投資看盤 APP")
+st.set_page_config(page_title="Simple stock chart reading tool", layout="wide")
+st.title("Simple stock chart reading tool")
 
 # 側邊欄設定
 st.sidebar.header("設定")
