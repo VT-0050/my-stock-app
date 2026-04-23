@@ -3,40 +3,73 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# 網頁標題
-st.set_page_config(page_title="Simple stock chart reading tool", layout="wide")
-st.title("Simple stock chart reading tool")
+st.set_page_config(page_title="家人專屬看盤室", layout="wide")
 
-# 側邊欄設定
-st.sidebar.header("設定")
-stock_id = st.sidebar.text_input("輸入股票代碼 (台股請加 .TW)", value="2330.TW")
-period = st.sidebar.selectbox("選擇時間範圍", ["1mo", "3mo", "6mo", "1y", "2y", "5y"], index=3)
+# --- 標題與側邊欄設定 ---
+st.title("📈 核心資產配置監控")
+st.sidebar.header("💰 投資配置設定")
 
-# 抓取資料
-try:
-    df = yf.download(stock_id, period=period)
-    
-    if df.empty:
-        st.error("找不到該股票資料，請檢查代碼是否正確。")
-    else:
-        # 計算移動平均線
-        df['MA20'] = df['Close'].rolling(window=20).mean()
-        df['MA60'] = df['Close'].rolling(window=60).mean()
+# 設定投入總金額
+total_budget = st.sidebar.number_input("請輸入預計投入總金額 (台幣)", value=1000000, step=10000)
 
-        # 繪製 K 線圖 (使用 Plotly 讓圖表可以縮放)
-        fig = go.Figure(data=[go.Candlestick(x=df.index,
-                        open=df['Open'], high=df['High'],
-                        low=df['Low'], close=df['Close'], name='K線')])
-        
-        # 加入均線
-        fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], name='20日均線', line=dict(color='orange', width=1)))
-        fig.add_trace(go.Scatter(x=df.index, y=df['MA60'], name='60日均線', line=dict(color='blue', width=1)))
+# --- 1. 抓取匯率與金融數據 ---
+@st.cache_data(ttl=3600) # 快取一小時，增加開啟速度
+def get_market_data():
+    # 抓取 0050, VT, VIX, USD/TWD 匯率
+    tickers = {
+        "0050": "0050.TW",
+        "VT (全世界股市)": "VT",
+        "VIX (恐慌指數)": "^VIX",
+        "台幣/美金匯率": "TWD=X"
+    }
+    data = {}
+    for name, sym in tickers.items():
+        ticker_obj = yf.Ticker(sym)
+        data[name] = ticker_obj.history(period="1y")
+    return data
 
-        st.plotly_chart(fig, use_container_width=True)
+data_dict = get_market_data()
 
-        # 顯示最近幾天的數據表格
-        st.subheader("最近五日數據")
-        st.write(df.tail(5))
+# --- 2. 顯示即時關鍵數據 (Top Row) ---
+col1, col2, col3 = st.columns(3)
+with col1:
+    rate = data_dict["台幣/美金匯率"]['Close'].iloc[-1]
+    st.metric("💵 台幣對美金匯率", f"{rate:.2f}")
+with col2:
+    vix_val = data_dict["VIX (恐慌指數)"]['Close'].iloc[-1]
+    st.metric("😱 VIX 恐慌指數", f"{vix_val:.2f}")
+with col3:
+    # CNN 恐懼貪婪指數目前無法直接透過 yfinance 抓取，改為提供快速連結
+    st.markdown("[🔗 **點此查看 CNN 恐懼貪婪指數**](https://cnn.com)")
 
-except Exception as e:
-    st.error(f"發生錯誤: {e}")
+# --- 3. 配置建議計算 ---
+st.subheader("📊 投資配置試算 (0050 vs VT)")
+c1, c2 = st.columns(2)
+
+def show_allocation(ratio_name, ratio_val):
+    st.info(f"建議比例 {ratio_name}")
+    amt_0050 = total_budget * ratio_val[0]
+    amt_vt = total_budget * ratio_val[1]
+    st.write(f"📍 0050 應投入: **{amt_0050:,.0f}** 元")
+    st.write(f"📍 VT 應投入: **{amt_vt:,.0f}** 元")
+
+with c1:
+    show_allocation("3 : 7", [0.3, 0.7])
+with c2:
+    show_allocation("4 : 6", [0.4, 0.6])
+
+# --- 4. 繪製圖表 ---
+st.divider()
+target_stock = st.selectbox("切換查看 K 線圖", ["0050", "VT (全世界股市)", "VIX (恐慌指數)"])
+plot_df = data_dict[target_stock]
+
+fig = go.Figure(data=[go.Candlestick(x=plot_df.index,
+                open=plot_df['Open'], high=plot_df['High'],
+                low=plot_df['Low'], close=plot_df['Close'], name='K線')])
+
+fig.update_layout(title=f"{target_stock} 歷史走勢", xaxis_rangeslider_visible=False)
+st.plotly_chart(fig, use_container_width=True)
+
+# 顯示數據表格
+st.subheader("最近數據細節")
+st.write(plot_df.tail(5))
