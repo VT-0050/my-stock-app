@@ -2,4 +2,4 @@ streamlit
 yfinance
 pandas
 plotly
-fear-and-greed
+fear_and_greed
