@@ -2,17 +2,11 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-
-# --- AI 防錯引入區塊 ---
+# 針對新版 fear-and-greed 套件的引入方式
 try:
-    # 嘗試第一種可能的路徑 (較舊版本)
-    from fear_greed_index.CNNFearAndGreedIndex import CNNFearAndGreedIndex
+    from fear_and_greed import CNNFearAndGreedIndex
 except ImportError:
-    try:
-        # 嘗試第二種路徑 (較新版本)
-        from fear_and_greed import CNNFearAndGreedIndex
-    except ImportError:
-        CNNFearAndGreedIndex = None
+    CNNFearAndGreedIndex = None
 
 st.set_page_config(page_title="家人專屬看盤室", layout="wide")
 
